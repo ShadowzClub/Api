@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <script>
+    async function run() {
+      const res = await fetch('../media/nsfw.json')
+      const data = await res.json()
+
+      // obtener categoría desde URL
+      const params = new URLSearchParams(window.location.search)
+      const category = params.get('cat')
+
+      // si no ponen categoría → random global
+      let images
+
+      if (!category) {
+        images = Object.values(data).flat()
+      } else {
+        images = data[category]
+      }
+
+      if (!images || images.length === 0) {
+        document.body.innerHTML = 'Categoría no válida'
+        return
+      }
+
+      // elegir random
+      const random = images[Math.floor(Math.random() * images.length)]
+
+      // redirigir a la imagen
+      window.location.href = random
+    }
+
+    run()
+  </script>
+</head>
+<body></body>
+</html>
