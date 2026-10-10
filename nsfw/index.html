@@ -16,6 +16,7 @@
     .cat{display:inline-block;background:#27272a;padding:6px 12px;border-radius:999px;font-size:.8rem;margin:4px 4px 0 0;color:#d4d4d8;text-decoration:none}
     pre{background:#09090b;border-radius:10px;padding:14px;font-size:.85rem;overflow-x:auto;margin-top:16px;border:1px solid #27272a}
     .error{color:#f87171}
+    .img-preview{width:100%;max-height:300px;object-fit:cover;border-radius:8px;margin-top:16px}
   </style>
 </head>
 <body>
@@ -37,16 +38,13 @@
         let images = !cat ? Object.values(data).flat() : (data[cat] || null);
 
         if (!images) {
-          const err = { status: 'error', message: `Categoría "${cat}" no existe`, available_categories: cats };
+          const err = { status: 'error', message: 'Categoría "' + cat + '" no existe', available_categories: cats };
           if (wantJson) {
             document.body.innerHTML = '';
             document.write(JSON.stringify(err));
             return;
           }
-          app.innerHTML = `<h1 class="error">Categoría no válida</h1>
-            <p class="subtitle">La categoría <b>${cat}</b> no existe.</p>
-            <div>\( {cats.map(c => `<a class="cat" href="?cat= \){c}">${c}</a>`).join('')}</div>
-            <br><a class="btn secondary" href="?">Volver</a>`;
+          app.innerHTML = '<h1 class="error">Categoría no válida</h1><p class="subtitle">La categoría <b>' + cat + '</b> no existe.</p><div>' + cats.map(c => '<a class="cat" href="?cat=' + c + '">' + c + '</a>').join('') + '</div><br><a class="btn secondary" href="?">Volver</a>';
           return;
         }
 
@@ -56,7 +54,7 @@
             document.write(JSON.stringify({ status: 'error', message: 'No hay imágenes' }));
             return;
           }
-          app.innerHTML = `<h1 class="error">Sin imágenes</h1>`;
+          app.innerHTML = '<h1 class="error">Sin imágenes</h1>';
           return;
         }
 
@@ -67,53 +65,43 @@
           selected.push(pool.splice(idx, 1)[0]);
         }
 
-        // === MODO JSON ===
+        // MODO JSON
         if (wantJson) {
           document.body.innerHTML = '';
           const payload = count === 1
             ? { status: 'ok', url: selected[0] }
             : { status: 'ok', count: selected.length, urls: selected };
-          document.write(JSON.stringify(payload));
+          document.write(JSON.stringify(payload, null, 2));
           return;
         }
 
-        // === REDIRIGIR (por defecto) ===
+        // MODO REDIRECT DIRECTO
         if (!showInfo && count === 1) {
           location.href = selected[0];
           return;
         }
 
-        // === PÁGINA DE INFO ===
+        // MODO HTML UI
         app.innerHTML = `
-          <h1>Shadowz NSFW API 🍓</h1>
-          <p class="subtitle">API de imágenes aleatorias</p>
-          <p><b>Categoría:</b> ${cat || 'todas'} &nbsp;•&nbsp; <b>Total:</b> ${images.length}</p>
-          <div style="margin:20px 0">
-            <a class="btn" href="?${cat ? 'cat=' + cat + '&' : ''}">Imagen Random</a>
-            <a class="btn secondary" href="?${cat ? 'cat=' + cat + '&' : ''}json=1">Ver JSON</a>
-          </div>
-          <h3 style="margin:24px 0 10px;font-size:1rem">Categorías</h3>
+          <h1>Shadowz API</h1>
+          <p class="subtitle">Categoría actual: <b>${cat || 'Todas'}</b></p>
           <div>
-            <a class="cat" href="?">todas</a>
-            \( {cats.map(c => `<a class="cat" href="?cat= \){c}">${c}</a>`).join('')}
+            <img src="${selected[0]}" alt="Imagen" class="img-preview">
           </div>
-          <h3 style="margin:28px 0 10px;font-size:1rem">Ejemplos</h3>
-          <pre>// Redirige
-https://shadowzclub.github.io/Api/nsfw/
+          <div style="margin-top: 16px;">
+            <a class="btn" href="${selected[0]}" target="_blank">Abrir imagen</a>
+            <a class="btn secondary" href="?${cat ? 'cat=' + cat : ''}">Otra imagen</a>
+          </div>
+          <pre>${JSON.stringify(count === 1 ? { status: 'ok', url: selected[0] } : { status: 'ok', urls: selected }, null, 2)}</pre>
+        `;
 
-// JSON
-https://shadowzclub.github.io/Api/nsfw/?json=1
-https://shadowzclub.github.io/Api/nsfw/?cat=pechos&json=1
-
-// Varias
-https://shadowzclub.github.io/Api/nsfw/?json=1&count=3</pre>`;
       } catch (err) {
         if (wantJson) {
           document.body.innerHTML = '';
           document.write(JSON.stringify({ status: 'error', message: err.message }));
-        } else {
-          app.innerHTML = `<h1 class="error">Error</h1><p>${err.message}</p>`;
+          return;
         }
+        app.innerHTML = '<h1 class="error">Error</h1><p class="subtitle">' + err.message + '</p>';
       }
     }
     main();
