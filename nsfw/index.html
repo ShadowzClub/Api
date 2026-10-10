@@ -1,38 +1,122 @@
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
-  <script>
-    async function run() {
-      const res = await fetch('../media/nsfw.json')
-      const data = await res.json()
-
-      // obtener categoría desde URL
-      const params = new URLSearchParams(window.location.search)
-      const category = params.get('cat')
-
-      // si no ponen categoría → random global
-      let images
-
-      if (!category) {
-        images = Object.values(data).flat()
-      } else {
-        images = data[category]
-      }
-
-      if (!images || images.length === 0) {
-        document.body.innerHTML = 'Categoría no válida'
-        return
-      }
-
-      // elegir random
-      const random = images[Math.floor(Math.random() * images.length)]
-
-      // redirigir a la imagen
-      window.location.href = random
-    }
-
-    run()
-  </script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Shadowz API</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:system-ui,sans-serif;background:#0f0f13;color:#e4e4e7;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+    .card{background:#18181b;border:1px solid #27272a;border-radius:16px;padding:32px;max-width:520px;width:100%}
+    h1{font-size:1.6rem;margin-bottom:8px}
+    .subtitle{color:#a1a1aa;margin-bottom:24px;font-size:.95rem}
+    .btn{display:inline-block;background:#e11d48;color:#fff;padding:12px 20px;border-radius:10px;font-weight:600;text-decoration:none;margin:6px 6px 6px 0}
+    .btn:hover{background:#be123c}
+    .btn.secondary{background:#3f3f46}
+    .cat{display:inline-block;background:#27272a;padding:6px 12px;border-radius:999px;font-size:.8rem;margin:4px 4px 0 0;color:#d4d4d8;text-decoration:none}
+    pre{background:#09090b;border-radius:10px;padding:14px;font-size:.85rem;overflow-x:auto;margin-top:16px;border:1px solid #27272a}
+    .error{color:#f87171}
+  </style>
 </head>
-<body></body>
+<body>
+  <div class="card" id="app"><div style="color:#a1a1aa">Cargando...</div></div>
+  <script>
+    const app = document.getElementById('app');
+    async function main() {
+      const p = new URLSearchParams(location.search);
+      const cat = p.get('cat') || p.get('category');
+      const wantJson = p.get('json') === '1' || p.get('format') === 'json';
+      const showInfo = p.get('redirect') === '0';
+      const count = Math.min(parseInt(p.get('count') || '1', 10) || 1, 10);
+
+      try {
+        const res = await fetch('../media/nsfw.json');
+        if (!res.ok) throw new Error('No se pudo cargar el JSON');
+        const data = await res.json();
+        const cats = Object.keys(data);
+        let images = !cat ? Object.values(data).flat() : (data[cat] || null);
+
+        if (!images) {
+          const err = { status: 'error', message: `Categoría "${cat}" no existe`, available_categories: cats };
+          if (wantJson) {
+            document.body.innerHTML = '';
+            document.write(JSON.stringify(err));
+            return;
+          }
+          app.innerHTML = `<h1 class="error">Categoría no válida</h1>
+            <p class="subtitle">La categoría <b>${cat}</b> no existe.</p>
+            <div>\( {cats.map(c => `<a class="cat" href="?cat= \){c}">${c}</a>`).join('')}</div>
+            <br><a class="btn secondary" href="?">Volver</a>`;
+          return;
+        }
+
+        if (!images.length) {
+          if (wantJson) {
+            document.body.innerHTML = '';
+            document.write(JSON.stringify({ status: 'error', message: 'No hay imágenes' }));
+            return;
+          }
+          app.innerHTML = `<h1 class="error">Sin imágenes</h1>`;
+          return;
+        }
+
+        const selected = [];
+        const pool = [...images];
+        for (let i = 0; i < count && pool.length; i++) {
+          const idx = Math.floor(Math.random() * pool.length);
+          selected.push(pool.splice(idx, 1)[0]);
+        }
+
+        // === MODO JSON ===
+        if (wantJson) {
+          document.body.innerHTML = '';
+          const payload = count === 1
+            ? { status: 'ok', url: selected[0] }
+            : { status: 'ok', count: selected.length, urls: selected };
+          document.write(JSON.stringify(payload));
+          return;
+        }
+
+        // === REDIRIGIR (por defecto) ===
+        if (!showInfo && count === 1) {
+          location.href = selected[0];
+          return;
+        }
+
+        // === PÁGINA DE INFO ===
+        app.innerHTML = `
+          <h1>Shadowz NSFW API 🍓</h1>
+          <p class="subtitle">API de imágenes aleatorias</p>
+          <p><b>Categoría:</b> ${cat || 'todas'} &nbsp;•&nbsp; <b>Total:</b> ${images.length}</p>
+          <div style="margin:20px 0">
+            <a class="btn" href="?${cat ? 'cat=' + cat + '&' : ''}">Imagen Random</a>
+            <a class="btn secondary" href="?${cat ? 'cat=' + cat + '&' : ''}json=1">Ver JSON</a>
+          </div>
+          <h3 style="margin:24px 0 10px;font-size:1rem">Categorías</h3>
+          <div>
+            <a class="cat" href="?">todas</a>
+            \( {cats.map(c => `<a class="cat" href="?cat= \){c}">${c}</a>`).join('')}
+          </div>
+          <h3 style="margin:28px 0 10px;font-size:1rem">Ejemplos</h3>
+          <pre>// Redirige
+https://shadowzclub.github.io/Api/nsfw/
+
+// JSON
+https://shadowzclub.github.io/Api/nsfw/?json=1
+https://shadowzclub.github.io/Api/nsfw/?cat=pechos&json=1
+
+// Varias
+https://shadowzclub.github.io/Api/nsfw/?json=1&count=3</pre>`;
+      } catch (err) {
+        if (wantJson) {
+          document.body.innerHTML = '';
+          document.write(JSON.stringify({ status: 'error', message: err.message }));
+        } else {
+          app.innerHTML = `<h1 class="error">Error</h1><p>${err.message}</p>`;
+        }
+      }
+    }
+    main();
+  </script>
+</body>
 </html>
